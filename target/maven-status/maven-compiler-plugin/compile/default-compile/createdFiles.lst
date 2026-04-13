@@ -1,0 +1,4 @@
+com\tp3\students\controller\StudentController.class
+com\tp3\students\entity\Student.class
+com\tp3\students\repository\StudentRepository.class
+com\tp3\students\StudentBackendApplication.class
