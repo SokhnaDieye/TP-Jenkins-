@@ -2,9 +2,10 @@ pipeline {
     agent none
 
     environment {
-        IMAGE_NAME = "sokhnad/student-backend"
+        IMAGE_NAME     = "sokhnad/student-backend"
         CONTAINER_NAME = "student-backend"
-        APP_PORT = "8080"
+        APP_PORT       = "8080"
+        REMOTE_HOST    = "192.168.56.20" 
     }
 
     stages {
@@ -18,8 +19,8 @@ pipeline {
                 }
             }
             steps {
-                echo '📦 Build du projet Spring Boot...'
-                sh "mvn clean package -DskipTests"
+                echo 'Build du projet Spring Boot...'
+                sh 'mvn clean package -DskipTests'
             }
         }
 
@@ -33,7 +34,7 @@ pipeline {
             }
             steps {
                 echo '🧪 Exécution des tests unitaires...'
-                sh "mvn test"
+                sh 'mvn test'
             }
             post {
                 always {
@@ -51,35 +52,53 @@ pipeline {
                 }
             }
             steps {
-                echo '🐳 Build et push de l\'image Docker...'
+                echo 'Build et push de l\'image Docker...'
                 withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub_credentials',
-                    passwordVariable: 'DOCKER_HUB_PASSWORD',
-                    usernameVariable: 'DOCKER_HUB_USERNAME'
+                    credentialsId   : 'dockerhub_credentials',
+                    usernameVariable: 'DOCKER_HUB_USERNAME',
+                    passwordVariable: 'DOCKER_HUB_PASSWORD'
                 )]) {
-                    sh "docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD"
-                    sh "docker build -t ${IMAGE_NAME}:v${BUILD_NUMBER} ."
+                    sh 'docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD'
+                    sh "docker build -t ${IMAGE_NAME}:v${BUILD_NUMBER} -t ${IMAGE_NAME}:latest ."
                     sh "docker push ${IMAGE_NAME}:v${BUILD_NUMBER}"
+                    sh "docker push ${IMAGE_NAME}:latest"
                 }
             }
         }
 
-        // ── STAGE 4 : Déploiement sur serveur distant ─────────────────────
+        // ── STAGE 4 : Déploiement SSH sur serveur distant ─────────────────
         stage('Deploy on Remote Server') {
             agent any
             steps {
-                echo ' Déploiement sur le serveur distant...'
-                sh """
-                    ssh -i /idrsa -o StrictHostKeyChecking=no user@remote.server.com '
-                    docker pull ${IMAGE_NAME}:v${BUILD_NUMBER} &&
-                    docker stop ${CONTAINER_NAME} || true &&
-                    docker rm   ${CONTAINER_NAME} || true &&
-                    docker run -d \\
-                        --name ${CONTAINER_NAME} \\
-                        -p ${APP_PORT}:${APP_PORT} \\
-                        ${IMAGE_NAME}:v${BUILD_NUMBER}
-                    '
-                """
+                echo 'Déploiement sur le serveur distant...'
+                withCredentials([sshUserPrivateKey(
+                    credentialsId   : 'remote_ssh_key',
+                    keyFileVariable : 'SSH_KEY_FILE',
+                    usernameVariable: 'SSH_USER'
+                )]) {
+                    sh """
+                        ssh -i \$SSH_KEY_FILE \
+                            -o StrictHostKeyChecking=no \
+                            \${SSH_USER}@${REMOTE_HOST} '
+                            echo "=== Pull de la nouvelle image ==="
+                            docker pull ${IMAGE_NAME}:v${BUILD_NUMBER}
+
+                            echo "=== Arrêt et suppression de l ancien conteneur ==="
+                            docker stop  ${CONTAINER_NAME} || true
+                            docker rm    ${CONTAINER_NAME} || true
+
+                            echo "=== Lancement du nouveau conteneur ==="
+                            docker run -d \\
+                                --name    ${CONTAINER_NAME} \\
+                                --restart unless-stopped \\
+                                -p ${APP_PORT}:${APP_PORT} \\
+                                ${IMAGE_NAME}:v${BUILD_NUMBER}
+
+                            echo "=== Nettoyage des anciennes images ==="
+                            docker image prune -f
+                        '
+                    """
+                }
             }
         }
 
@@ -88,10 +107,13 @@ pipeline {
     // ── POST ──────────────────────────────────────────────────────────────
     post {
         success {
-            echo 'Pipeline exécuté avec succès !'
+            echo "Pipeline réussi ! Image déployée : ${IMAGE_NAME}:v${BUILD_NUMBER}"
         }
         failure {
-            echo 'Pipeline échoué.'
+            echo ' Pipeline échoué. Consulte les logs ci-dessus.'
+        }
+        always {
+            echo 'Fin du pipeline.'
         }
     }
 }
