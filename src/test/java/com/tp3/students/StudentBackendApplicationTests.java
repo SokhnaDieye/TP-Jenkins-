@@ -10,6 +10,6 @@ class StudentBackendApplicationTests {
 
     @Test
     void contextLoads() {
-        // Vérifie que le contexte Spring démarre correctement
+       
     }
 }
