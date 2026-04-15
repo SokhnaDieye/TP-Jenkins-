@@ -2,15 +2,12 @@ pipeline {
     agent none
 
     environment {
-        IMAGE_NAME     = "sokhnad/student-backend"
-        CONTAINER_NAME = "student-backend"
-        APP_PORT       = "8080"
-        REMOTE_HOST    = "192.168.56.20" 
+        IMAGE_NAME = "sokhnad/student-backend"
+        APP_PORT   = "8080"
     }
 
     stages {
 
-        // ── STAGE 1 : Build Maven + Tests ───────────────────────────────
         stage('Build & Test Maven') {
             agent {
                 docker {
@@ -32,7 +29,6 @@ pipeline {
             }
         }
 
-        // ── STAGE 2 : Build & Push Docker Hub ────────────────────────────
         stage('Push to Docker Hub') {
             agent {
                 docker {
@@ -56,36 +52,11 @@ pipeline {
                 }
             }
         }
-
-        // ── STAGE 3 : Déploiement local avec Docker ──────────────────────
-        stage('Deploy Local') {
-            agent any
-            steps {
-                echo 'Déploiement local de l\'application...'
-                sh """
-                    echo "=== Arrêt et suppression de l\'ancien conteneur ==="
-                    docker stop ${CONTAINER_NAME} || true
-                    docker rm ${CONTAINER_NAME} || true
-
-                    echo "=== Lancement du nouveau conteneur ==="
-                    docker run -d \\
-                        --name ${CONTAINER_NAME} \\
-                        --restart unless-stopped \\
-                        -p ${APP_PORT}:${APP_PORT} \\
-                        ${IMAGE_NAME}:v${BUILD_NUMBER}
-
-                    echo "=== Nettoyage des anciennes images ==="
-                    docker image prune -f
-                """
-            }
-        }
     }
 
-    // ── POST ──────────────────────────────────────────────────────────────
     post {
         success {
-            echo "Pipeline réussi ! Image déployée : ${IMAGE_NAME}:v${BUILD_NUMBER}"
-            echo "Application disponible sur http://localhost:${APP_PORT}"
+            echo "Pipeline réussi ! Image disponible sur Docker Hub : ${IMAGE_NAME}"
         }
         failure {
             echo 'Pipeline échoué. Consulte les logs ci-dessus.'
