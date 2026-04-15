@@ -7,7 +7,16 @@ pipeline {
     }
 
     stages {
+        // ── STAGE 0 : Nettoyage de l'espace de travail ───────────────────────
+        stage('Clean Workspace') {
+            agent any
+            steps {
+                cleanWs()
+                sh 'sudo rm -rf target/ || true'
+            }
+        }
 
+        // ── STAGE 1 : Build & Test Maven ───────────────────────────────────
         stage('Build & Test Maven') {
             agent {
                 docker {
@@ -29,6 +38,7 @@ pipeline {
             }
         }
 
+        // ── STAGE 2 : Push to Docker Hub ────────────────────────────────────
         stage('Push to Docker Hub') {
             agent {
                 docker {
@@ -56,12 +66,13 @@ pipeline {
 
     post {
         success {
-            echo "Pipeline réussi ! Image disponible sur Docker Hub : ${IMAGE_NAME}"
+            echo "Pipeline réussi ! Image disponible : ${IMAGE_NAME}:v${BUILD_NUMBER}"
         }
         failure {
             echo 'Pipeline échoué. Consulte les logs ci-dessus.'
         }
         always {
+            cleanWs()  
             echo 'Fin du pipeline.'
         }
     }
