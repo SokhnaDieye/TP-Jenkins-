@@ -26,7 +26,7 @@ Le pipeline Jenkins automatise les étapes suivantes :
 
 ## 🐳 Image Docker
 
-![Docker Hub](DockerHub.PNG)
+![Docker Hub](/image/DockerHub.PNG)
 
 L'image est disponible sur Docker Hub :
 
