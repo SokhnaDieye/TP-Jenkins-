@@ -3,25 +3,14 @@ pipeline {
 
     environment {
         IMAGE_NAME = "sokhnad/student-backend"
-        APP_PORT   = "8080"
     }
 
     stages {
-        // ── STAGE 0 : Nettoyage de l'espace de travail ───────────────────────
-        stage('Clean Workspace') {
-            agent any
-            steps {
-                cleanWs()
-                sh 'sudo rm -rf target/ || true'
-            }
-        }
-
-        // ── STAGE 1 : Build & Test Maven ───────────────────────────────────
         stage('Build & Test Maven') {
             agent {
                 docker {
                     image 'maven:3.9.6-eclipse-temurin-17-alpine'
-                    args '-v $HOME/.m2:/root/.m2'
+                    args '-u root -v $HOME/.m2:/root/.m2'
                 }
             }
             steps {
@@ -38,12 +27,11 @@ pipeline {
             }
         }
 
-        // ── STAGE 2 : Push to Docker Hub ────────────────────────────────────
         stage('Push to Docker Hub') {
             agent {
                 docker {
                     image 'docker:25.0.3'
-                    args '-v /var/run/docker.sock:/var/run/docker.sock'
+                    args '-u root -v /var/run/docker.sock:/var/run/docker.sock'
                 }
             }
             steps {
@@ -55,7 +43,7 @@ pipeline {
                     usernameVariable: 'DOCKER_HUB_USERNAME',
                     passwordVariable: 'DOCKER_HUB_PASSWORD'
                 )]) {
-                    sh 'docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD'
+                    sh 'echo $DOCKER_HUB_PASSWORD | docker login -u $DOCKER_HUB_USERNAME --password-stdin'
                     sh "docker build -t ${IMAGE_NAME}:v${BUILD_NUMBER} -t ${IMAGE_NAME}:latest ."
                     sh "docker push ${IMAGE_NAME}:v${BUILD_NUMBER}"
                     sh "docker push ${IMAGE_NAME}:latest"
@@ -72,7 +60,7 @@ pipeline {
             echo 'Pipeline échoué. Consulte les logs ci-dessus.'
         }
         always {
-            cleanWs()  
+            cleanWs()
             echo 'Fin du pipeline.'
         }
     }
