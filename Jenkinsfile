@@ -66,42 +66,6 @@ pipeline {
             }
         }
 
-        // // ── STAGE 4 : Déploiement SSH sur serveur distant ─────────────────
-        // stage('Deploy on Remote Server') {
-        //     agent any
-        //     steps {
-        //         echo 'Déploiement sur le serveur distant...'
-        //         withCredentials([sshUserPrivateKey(
-        //             credentialsId   : 'remote_ssh_key',
-        //             keyFileVariable : 'SSH_KEY_FILE',
-        //             usernameVariable: 'SSH_USER'
-        //         )]) {
-        //             sh """
-        //                 ssh -i \$SSH_KEY_FILE \
-        //                     -o StrictHostKeyChecking=no \
-        //                     \${SSH_USER}@${REMOTE_HOST} '
-        //                     echo "=== Pull de la nouvelle image ==="
-        //                     docker pull ${IMAGE_NAME}:v${BUILD_NUMBER}
-
-        //                     echo "=== Arrêt et suppression de l ancien conteneur ==="
-        //                     docker stop  ${CONTAINER_NAME} || true
-        //                     docker rm    ${CONTAINER_NAME} || true
-
-        //                     echo "=== Lancement du nouveau conteneur ==="
-        //                     docker run -d \\
-        //                         --name    ${CONTAINER_NAME} \\
-        //                         --restart unless-stopped \\
-        //                         -p ${APP_PORT}:${APP_PORT} \\
-        //                         ${IMAGE_NAME}:v${BUILD_NUMBER}
-
-        //                     echo "=== Nettoyage des anciennes images ==="
-        //                     docker image prune -f
-        //                 '
-        //             """
-        //         }
-        //     }
-        // }
-
     }
 
     // ── POST ──────────────────────────────────────────────────────────────
